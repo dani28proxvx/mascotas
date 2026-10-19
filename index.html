@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1f2a44">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mascota">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Mascota Sensorial</title>
+<style>
+:root{--bg1:#2a4a85;--bg2:#101a33}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+input{user-select:text;-webkit-user-select:text}
+html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#eef2ff;background:#101a33}
+body{background:linear-gradient(180deg,var(--bg1),var(--bg2));transition:background 1.6s}
+body.hot{--bg1:#c4622e;--bg2:#5a1d12}
+body.cold{--bg1:#5a9ac9;--bg2:#162a46}
+body.night{--bg1:#1b1e4a;--bg2:#05060e}
+#dim{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 1s;z-index:5}
+body.sleeping #dim{opacity:.55}
+.hidden{display:none!important}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 12px);overflow-y:auto}
+button{font:inherit;color:inherit;border:0;border-radius:14px;padding:11px 10px;background:rgba(255,255,255,.16);cursor:pointer;transition:transform .1s,background .2s}
+button:active{transform:scale(.95)}
+button.on{background:#3fbf7f;color:#04210f;font-weight:600}
+button.err{background:#c8574c}
+button.primary{background:#ffd54a;color:#2b2100;font-weight:700}
+button:disabled{opacity:.6}
+
+/* --- selector --- */
+.pickhead{display:flex;align-items:center;gap:10px}
+.pickhead h1{margin:0;font-size:22px}
+.pickhead p{margin:2px 0 0;opacity:.7;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:6px}
+.cell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 2px}
+.cell span{font-size:40px;line-height:1.1}
+.cell small{font-size:11px;opacity:.85}
+.cell.sel{outline:3px solid #ffd54a;background:rgba(255,213,74,.22)}
+.adopt{position:sticky;bottom:0;display:flex;gap:8px;padding:10px;margin-top:auto;border-radius:16px;background:rgba(10,16,32,.85);backdrop-filter:blur(8px)}
+.adopt input{flex:1;min-width:0;font:inherit;padding:10px 12px;border-radius:12px;border:0;background:rgba(255,255,255,.15);color:#fff}
+.adopt input::placeholder{color:rgba(255,255,255,.55)}
+
+/* --- casa --- */
+.top{display:flex;align-items:center;justify-content:space-between}
+.top b{font-size:19px}
+.top small{opacity:.7;margin-left:6px}
+.topbtns{display:flex;gap:6px}
+.topbtns button{padding:7px 11px}
+.bubble{min-height:62px;display:flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:18px;background:rgba(255,255,255,.14);backdrop-filter:blur(6px);text-align:center;font-size:16px;line-height:1.35;opacity:.55;transition:opacity .4s}
+.bubble.show{opacity:1}
+#stage{position:relative;flex:1;min-height:200px;display:flex;align-items:center;justify-content:center;touch-action:none}
+#flipper{transition:transform .7s}
+#flipper.upside{transform:rotate(180deg)}
+#tilt{position:relative;display:inline-block;isolation:isolate;transition:transform .15s linear}
+#tilt::after{content:"";position:absolute;left:14%;right:14%;bottom:-6px;height:16px;border-radius:50%;background:rgba(0,0,0,.3);filter:blur(5px);z-index:-1}
+#pet{display:inline-block;font-size:clamp(110px,38vw,170px);line-height:1.05;transform-origin:50% 90%;animation:breathe 3s ease-in-out infinite}
+#mood{position:absolute;top:-4px;right:-30px;font-size:42px;animation:pop .5s}
+#fx{position:absolute;inset:-30px;pointer-events:none}
+.fx{position:absolute;font-size:28px;animation:floatUp 2.3s ease-out forwards}
+@keyframes floatUp{0%{opacity:0;transform:translateY(12px) scale(.6)}15%{opacity:1}100%{opacity:0;transform:translateY(-90px) scale(1.2)}}
+@keyframes pop{0%{transform:scale(.2) rotate(-20deg)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.03,.97)}}
+#pet.pant{animation:pant .45s ease-in-out infinite}
+@keyframes pant{0%,100%{transform:scale(1,1)}50%{transform:scale(1.08,.93)}}
+#pet.shake{animation:shake .12s linear infinite}
+@keyframes shake{0%,100%{transform:translate(-9px,0) rotate(-7deg)}50%{transform:translate(9px,0) rotate(7deg)}}
+#pet.shiver{animation:shiver .09s linear infinite}
+@keyframes shiver{0%,100%{transform:translateX(-2.5px)}50%{transform:translateX(2.5px)}}
+#pet.scared{animation:scared .06s linear infinite}
+@keyframes scared{0%,100%{transform:translate(-3px,0) scale(.9)}50%{transform:translate(3px,-2px) scale(.9)}}
+#pet.dizzy{animation:dizzy .9s ease-in-out infinite}
+@keyframes dizzy{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(14deg)}}
+#pet.jump{animation:jump .6s ease-out 2}
+@keyframes jump{0%,100%{transform:translateY(0)}40%{transform:translateY(-55px) scale(1.05,.95)}}
+#pet.sleep{animation:sleepy 4s ease-in-out infinite;filter:brightness(.85)}
+@keyframes sleepy{0%,100%{transform:rotate(-9deg) scale(1)}50%{transform:rotate(-9deg) scale(1.04,.96)}}
+
+.bars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bar{background:rgba(255,255,255,.1);border-radius:12px;padding:6px 9px;font-size:12px}
+.bar i{display:block;height:7px;border-radius:5px;background:rgba(255,255,255,.18);margin-top:4px;overflow:hidden}
+.bar i b{display:block;height:100%;width:50%;background:#6fe3a0;transition:width .5s,background .5s}
+.bar.low i b{background:#ff7a6b}
+.actions,.senses{display:grid;gap:8px}
+.actions{grid-template-columns:repeat(3,1fr)}
+.senses{grid-template-columns:repeat(4,1fr)}
+.senses button{font-size:13px;padding:9px 4px}
+.lbl{font-size:12px;opacity:.7;margin:2px 2px -2px}
+.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px}
+.readout div{background:rgba(0,0,0,.22);border-radius:10px;padding:6px 8px;display:flex;justify-content:space-between;gap:4px}
+.readout span{opacity:.75}
+.sim{font-size:13px;background:rgba(0,0,0,.2);border-radius:12px;padding:8px 10px}
+.sim summary{cursor:pointer}
+.sim label{display:flex;align-items:center;gap:8px;margin:7px 0}
+.sim input[type=range]{flex:1}
+.sim .row{display:flex;gap:6px;flex-wrap:wrap}
+.sim button{padding:8px 10px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="dim"></div>
+
+<!-- ============ ELEGIR ANIMAL ============ -->
+<section id="pick" class="screen">
+  <div class="pickhead">
+    <button id="btnBack" class="hidden">←</button>
+    <div><h1>Elige tu animalito 🐾</h1><p>Toca uno para conocerlo y luego adóptalo</p></div>
+  </div>
+  <div id="grid" class="grid"></div>
+  <div id="adoptBar" class="adopt hidden">
+    <input id="petName" maxlength="14" placeholder="Ponle un nombre" autocomplete="off">
+    <button id="adopt" class="primary">Adoptar 🐾</button>
+  </div>
+</section>
+
+<!-- ============ MASCOTA ============ -->
+<section id="home" class="screen hidden">
+  <div class="top">
+    <div><b id="pname"></b><small id="pkind"></small></div>
+    <div class="topbtns">
+      <button id="btnInstall" class="hidden">📲</button>
+      <button id="btnVoice">🔊</button>
+      <button id="btnChange">🐾</button>
+    </div>
+  </div>
+
+  <div id="bubble" class="bubble">…</div>
+
+  <div id="stage">
+    <div id="flipper"><div id="tilt">
+      <div id="pet"><span id="emoji"></span></div>
+      <div id="mood">🙂</div>
+      <div id="fx"></div>
+    </div></div>
+  </div>
+
+  <div class="bars">
+    <div class="bar" id="b-food">🍖 Comida<i><b></b></i></div>
+    <div class="bar" id="b-energy">⚡ Energía<i><b></b></i></div>
+    <div class="bar" id="b-love">❤️ Cariño<i><b></b></i></div>
+  </div>
+
+  <div class="actions">
+    <button id="btnFeed">🍖 Comer</button>
+    <button id="btnPlay">🎾 Jugar</button>
+    <button id="btnSleep">🌙 Dormir</button>
+  </div>
+
+  <div class="lbl">Sentidos (toca para activar):</div>
+  <div class="senses">
+    <button data-sense="weather">🌡️ Clima</button>
+    <button data-sense="motion">📳 Mover</button>
+    <button data-sense="mic">🎤 Oído</button>
+    <button data-sense="light">💡 Luz</button>
+  </div>
+
+  <div class="readout">
+    <div><span>🌡️</span><b id="r-temp">—</b></div>
+    <div><span>🔋</span><b id="r-batt">—</b></div>
+    <div><span>🎤</span><b id="r-noise">—</b></div>
+    <div><span>💡</span><b id="r-light">—</b></div>
+    <div><span>📶</span><b id="r-net">—</b></div>
+    <div><span>🕐</span><b id="r-hour">—</b></div>
+  </div>
+
+  <details class="sim" id="sim">
+    <summary>🧪 Simulador (para probar en PC)</summary>
+    <label><input type="checkbox" id="simOn"> Usar valores simulados</label>
+    <label>🌡️ <input type="range" id="simTemp" min="-10" max="45" value="22"><output id="simTempV">22°C</output></label>
+    <label>🎤 <input type="range" id="simNoise" min="0" max="100" value="5"><output id="simNoiseV">5</output></label>
+    <label>🔋 <input type="range" id="simBatt" min="1" max="100" value="80"><output id="simBattV">80%</output></label>
+    <label><input type="checkbox" id="simNight"> 🌙 Es de noche</label>
+    <label><input type="checkbox" id="simCharge"> ⚡ Cargando</label>
+    <div class="row">
+      <button id="simShake">📳 Sacudir</button>
+      <button id="simFall">🪂 Caída</button>
+      <button id="simFlip">🙃 Boca abajo</button>
+    </div>
+  </details>
+</section>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rnd = arr => arr[Math.floor(Math.random() * arr.length)];
+
+/* =====================================================
+   1. LOS ANIMALES  (hot/cold = °C a partir de los cuales
+      ese animal se queja del calor o del frío)
+   ===================================================== */
+const ANIMALS = [
+ {id:'perro',  e:'🐶', n:'Perro',    snd:'¡Guau guau!',        pitch:1.1, hot:28, cold:5,
+  hotL:'¡Uff, qué calor! Voy a jadear con la lengua afuera 🥵', coldL:'Brrr… ¿me prestas una mantita para acurrucarme?'},
+ {id:'gato',   e:'🐱', n:'Gato',     snd:'¡Miau!',             pitch:1.5, hot:30, cold:10,
+  hotL:'Uff… me tiro panza arriba en el suelo, qué calor. Miau…', coldL:'Brrr, busco tu regazo calentito. Miau.'},
+ {id:'conejo', e:'🐰', n:'Conejo',   snd:'*mueve la nariz*',   pitch:1.7, hot:26, cold:8,
+  hotL:'Uff, mis orejas se sobrecalientan… necesito sombra y agua.', coldL:'Brrr, me hago bolita para no temblar.'},
+ {id:'panda',  e:'🐼', n:'Panda',    snd:'¡Ñam ñam!',          pitch:0.8, hot:24, cold:0,
+  hotL:'Uff, soy de clima fresquito… ¡con este calor me derrito!', coldL:'Me gusta el fresco, pero esto ya es demasiado frío.'},
+ {id:'zorro',  e:'🦊', n:'Zorro',    snd:'¡Yip yip!',          pitch:1.5, hot:27, cold:5,
+  hotL:'Uff, este pelaje no es para tanto calor…', coldL:'Brrr, me tapo con mi colita como si fuera una bufanda.'},
+ {id:'pinguino',e:'🐧',n:'Pingüino', snd:'¡Pi pi pi!',         pitch:1.3, hot:18, cold:-5,
+  hotL:'¡Auxilio! Soy un pingüino, ¡esto es un infierno! 🥵', coldL:'Hasta a un pingüino le parece mucho frío esto. Brrr.'},
+ {id:'leon',   e:'🦁', n:'León',     snd:'¡Grrr!',             pitch:0.5, hot:32, cold:10,
+  hotL:'Uff, ni el rey de la sabana aguanta este calor. Quiero sombra.', coldL:'Brrr, hasta mi melena se eriza de frío.'},
+ {id:'mono',   e:'🐵', n:'Mono',     snd:'¡Uh uh ah ah!',      pitch:1.3, hot:30, cold:14,
+  hotL:'Uh uh, ¡qué calor! Quiero un coco bien frío.', coldL:'Uh uh… ¡brrr! Me abrazo las rodillas.'},
+ {id:'buho',   e:'🦉', n:'Búho',     snd:'¡Uuh uuh!',          pitch:0.7, hot:26, cold:3,
+  hotL:'Uuh… con tanto calor no puedo ni dormir.', coldL:'Uuh… esponjo todas mis plumas, brrr.'},
+ {id:'rana',   e:'🐸', n:'Rana',     snd:'¡Cro cro!',          pitch:0.9, hot:29, cold:14,
+  hotL:'Cro cro… ¡me estoy secando! Necesito un charquito.', coldL:'Cro… me dan ganas de hibernar, qué frío.'},
+ {id:'cerdito',e:'🐷', n:'Cerdito',  snd:'¡Oink oink!',        pitch:1.0, hot:25, cold:8,
+  hotL:'Oink… ¡quiero revolcarme en barro fresquito!', coldL:'Oink… brrr, me hago bolita.'},
+ {id:'oso',    e:'🐻', n:'Oso',      snd:'¡Grrr!',             pitch:0.6, hot:24, cold:-5,
+  hotL:'Grrr… con tanto pelo, ¡me ahogo de calor!', coldL:'Brrr… me dan ganas de hibernar.'},
+ {id:'koala',  e:'🐨', n:'Koala',    snd:'¡Ñom ñom!',          pitch:0.9, hot:28, cold:8,
+  hotL:'Uff… me abrazo a un árbol fresquito, qué calor.', coldL:'Brrr, ¿me dejas abrazar tu brazo para calentarme?'},
+ {id:'tigre',  e:'🐯', n:'Tigre',    snd:'¡Roaar!',            pitch:0.6, hot:31, cold:8,
+  hotL:'Roaar… ¡necesito meterme al agua ya! Qué calor.', coldL:'Brrr… ni las rayas me abrigan.'},
+ {id:'pollito',e:'🐥', n:'Pollito',  snd:'¡Pío pío!',          pitch:1.8, hot:29, cold:12,
+  hotL:'Pío pío… ¡qué calorcito! Abro mis alitas.', coldL:'Pío… brrr, ¿me dejas meterme bajo tu manga?'},
+ {id:'tortuga',e:'🐢', n:'Tortuga',  snd:'…hola… despacito…',  pitch:0.7, hot:33, cold:15,
+  hotL:'Uff… hasta mi caparazón está hirviendo, qué calor.', coldL:'Brrr… me escondo en mi caparazón.'}
+];
+
+/* =====================================================
+   2. ESTADO
+   ===================================================== */
+const KEY = 'mascota-sensorial.v1';
+let S = null;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const animal = () => ANIMALS.find(a => a.id === S.animal) || ANIMALS[0];
+
+const senseOn = { weather:false, motion:false, mic:false, light:false };
+const R   = { temp:null, code:null, battery:null, charging:null, noise:0, light:null, online:navigator.onLine };
+const sim = { on:false, temp:22, noise:5, batt:80, night:false, charging:false };
+
+// V = "lo que siente la mascota": valores reales, o simulados si el simulador está activo
+const V = {
+  temp:     () => sim.on ? sim.temp  : R.temp,
+  noise:    () => sim.on ? sim.noise : (senseOn.mic ? R.noise : null),
+  batt:     () => sim.on ? sim.batt  : R.battery,
+  charging: () => sim.on ? sim.charging : R.charging,
+  hour:     () => (sim.on && sim.night) ? 2 : new Date().getHours()
+};
+const isNight = () => { const h = V.hour(); return h >= 22 || h < 6; };
+const climate = () => {
+  const t = V.temp(); if (t == null || !S) return null;
+  const a = animal();
+  return t >= a.hot ? 'hot' : (t <= a.cold ? 'cold' : 'ok');
+};
+const fmtTemp = () => { const t = V.temp(); return t == null ? '' : Math.round(t) + '°C'; };
+const fmtAway = m => m < 60 ? Math.round(m) + ' min' : (m < 1440 ? (m / 60).toFixed(1).replace('.0','') + ' h' : Math.round(m / 1440) + ' días');
+
+/* =====================================================
+   3. SONIDO Y VOZ
+   ===================================================== */
+let AC = null, mutedUntil = 0;
+const getAC = () => { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; };
+function chirp(pitch = 1, n = 2) {
+  try {
+    const ac = getAC(), t = ac.currentTime;
+    for (let i = 0; i < n; i++) {
+      const o = ac.createOscillator(), g = ac.createGain(), s = t + i * 0.12;
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(420 * pitch * (1 + i * 0.25), s);
+      o.frequency.exponentialRampToValueAtTime(700 * pitch, s + 0.1);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.exponentialRampToValueAtTime(0.18, s + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.11);
+      o.connect(g); g.connect(ac.destination);
+      o.start(s); o.stop(s + 0.12);
+    }
+  } catch (e) {}
+  mutedUntil = Math.max(mutedUntil, Date.now() + 800);   // que no se asuste de su propio sonido
+}
+function speak(text) {
+  if (!S || !S.voice || !('speechSynthesis' in window)) return;
+  const clean = text.replace(/[\p{Extended_Pictographic}️‍*…]/gu, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = 'es-ES'; u.pitch = clamp(animal().pitch, 0.1, 2); u.rate = 1.05;
+    speechSynthesis.speak(u);
+    mutedUntil = Math.max(mutedUntil, Date.now() + 1500 + clean.length * 80);  // el micro ignora su propia voz
+  } catch (e) {}
+}
+
+/* =====================================================
+   4. APARIENCIA: burbuja, animaciones, estado de ánimo
+   ===================================================== */
+const ANIMS = ['pant','shake','shiver','jump','sleep','scared','dizzy'];
+let bubbleT = null, lastFx = 0;
+function say(text, ms = 4000, speakIt = true) {
+  const b = $('#bubble');
+  b.textContent = text; b.classList.add('show');
+  clearTimeout(bubbleT); bubbleT = setTimeout(() => b.classList.remove('show'), ms + 1500);
+  if (speakIt) speak(text);
+}
+function setAnim(name) {
+  const p = $('#pet');
+  ANIMS.forEach(c => p.classList.remove(c));
+  void p.offsetWidth;
+  if (name) p.classList.add(name);
+}
+function setMood(m) {
+  const el = $('#mood');
+  el.textContent = m;
+  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+}
+function spawnFx(emoji, n = 1) {
+  const box = $('#fx');
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    if (box.children.length > 14) return;
+    const s = document.createElement('span');
+    s.className = 'fx'; s.textContent = emoji;
+    s.style.left = (15 + Math.random() * 70) + '%';
+    s.style.top  = (10 + Math.random() * 45) + '%';
+    s.addEventListener('animationend', () => s.remove());
+    box.appendChild(s);
+  }, i * 180);
+}
+// aspecto "de reposo" según el entorno y las necesidades
+function baseline() {
+  if (!S) return;
+  let anim = '', mood = '😊';
+  if (S.sleeping) { anim = 'sleep'; mood = '😴'; }
+  else {
+    const c = climate();
+    if (c === 'hot')       { anim = 'pant';   mood = '🥵'; }
+    else if (c === 'cold') { anim = 'shiver'; mood = '🥶'; }
+    else if (S.comida < 25) mood = '🤤';
+    else if (S.energia < 20) mood = '😪';
+    else if (S.cari < 25)    mood = '🥺';
+    else if (S.cari > 80 && S.comida > 60) mood = '😍';
+  }
+  setAnim(anim); setMood(mood);
+}
+
+/* =====================================================
+   5. MOTOR DE REACCIONES
+      prio: quién interrumpe a quién · cd: espera mínima
+      entre dos veces · ms: cuánto dura la reacción
+   ===================================================== */
+const G = ['Uff, ¡qué calor hace! ({t}). ¿Me das agüita?','¡Qué calor! ({t}) Me falta el aire…'];
+const RX = {
+ tap:      {prio:2, cd:0,     ms:1800, anim:'jump',   mood:'😄', fx:'✨', speak:false, lines:['¡Jijiji! Me haces cosquillas','¡Hey! 😄','{snd}','¡Otra vez, otra vez!','¡{n} aquí!'], up:{cari:1}},
+ purr:     {prio:2, cd:4000,  ms:2500, anim:'',       mood:'🥰', fx:'❤️', speak:false, lines:['Mmmm… qué rico 🥰','Qué gusto… sigue, sigue…','Ronroneo de felicidad…'], up:{cari:4}},
+ hug:      {prio:4, cd:0,     ms:4000, anim:'jump',   mood:'🥰', fx:'💖', vib:40, lines:['¡Un abrazo! Te quiero mucho ❤️','Qué calentito… ¡no me sueltes!'], up:{cari:12}},
+ annoyed:  {prio:4, cd:8000,  ms:3500, anim:'dizzy',  mood:'😵', fx:'💢', lines:['¡Basta, basta! Me mareas 😵','¡Ay! ¿Por qué tantos toques?'], up:{cari:-2}},
+ shake:    {prio:9, cd:3500,  ms:3500, anim:'shake',  mood:'😵', fx:'💫', vib:[80,40,80], lines:['¡Aaay! ¡Me estás sacudiendo! ¡Me mareo!','¡Terremoto, terremoto!','¡Para, que se me revuelve el estómago!'], up:{energia:-3}},
+ woke:     {prio:9, cd:3000,  ms:3500, anim:'dizzy',  mood:'😠', fx:'💢', lines:['¡Eh! ¡Estaba durmiendo! 😠','Grrr… ¡déjame dormir!']},
+ freefall: {prio:10,cd:5000,  ms:3000, anim:'scared', mood:'😱', fx:'😱', vib:200, lines:['¡AAAAAH! ¡Me caigo! ¡Socorro!','¡Estamos cayendo! ¡Agárrate!']},
+ upside:   {prio:7, cd:15000, ms:4500, anim:'dizzy',  mood:'🙃', fx:'🌀', lines:['¡Todo está al revés! 🙃','Uy, se me sube la sangre a la cabeza…']},
+ facedown: {prio:6, cd:20000, ms:4000, anim:'',       mood:'🙈', fx:'🌑', lines:['¡No veo nada! ¡Dame la vuelta!','Está todo oscuro aquí abajo…']},
+ loud:     {prio:8, cd:8000,  ms:3500, anim:'scared', mood:'🙉', fx:'🔊', vib:60, lines:['¡Shhh! ¡Qué ruido! Me asustas 🙉','¡Mis oídos! Más bajito, por favor.']},
+ listen:   {prio:2, cd:45000, ms:3000, anim:'jump',   mood:'👂', fx:'🎵', lines:['¿Me hablas? Te escucho 👂','Qué bonito se oye todo… ♪']},
+ hot:      {prio:4, cd:90000, ms:5000, anim:'pant',   mood:'🥵', fx:'💦', fxN:3, lines:a => [Math.random() < 0.65 ? a.hotL : rnd(G)]},
+ veryhot:  {prio:5, cd:120000,ms:6000, anim:'pant',   mood:'🥵', fx:'💦', fxN:5, lines:['¡Me derrito! {t} es demasiado… necesito sombra y agua 🥵','¡Socorro, esto es un horno! ({t})']},
+ cold:     {prio:4, cd:90000, ms:5000, anim:'shiver', mood:'🥶', fx:'❄️', fxN:3, lines:a => [Math.random() < 0.65 ? a.coldL : 'Brrr… ¡qué frío! ({t})']},
+ verycold: {prio:5, cd:120000,ms:6000, anim:'shiver', mood:'🥶', fx:'❄️', fxN:5, lines:['¡Me congelo! {t}… ¡necesito una manta! 🥶','¡Brrr, brrr, brrr! ({t}) ¡Esto es Siberia!']},
+ comfy:    {prio:1, cd:900000,ms:4000, anim:'',       mood:'😌', fx:'🌸', lines:['¡Qué temperatura tan agradable! ({t}) 😌','Se está de maravilla aquí ({t}).']},
+ rain:     {prio:3, cd:1200000,ms:5000,anim:'',       mood:'☔', fx:'💧', lines:['¡Está lloviendo! Escucho las gotitas 🌧️','Llueve afuera… ¿saltamos en los charcos?']},
+ snow:     {prio:3, cd:1200000,ms:5000,anim:'jump',   mood:'⛄', fx:'❄️', lines:['¡Está nevando! ⛄ ¡Mira cuánta nieve!']},
+ charge:   {prio:5, cd:20000, ms:4000, anim:'jump',   mood:'😋', fx:'⚡', vib:40, lines:['¡Mmm, electricidad! ¡Qué rico me sienta! ⚡','Gracias por enchufarme, ¡ya tenía hambre de energía!']},
+ unplug:   {prio:3, cd:20000, ms:3000, anim:'',       mood:'🙂', fx:'🚶', lines:['Desconectado… ¡a explorar!']},
+ lowbat:   {prio:5, cd:300000,ms:5000, anim:'',       mood:'😰', fx:'🔋', lines:['Me quedo sin batería ({b}%)… ¡enchúfame, porfa! 😰','Siento que me desvanezco… ¿me das un poco de corriente?']},
+ offline:  {prio:4, cd:30000, ms:4500, anim:'',       mood:'🥺', fx:'📡', lines:['Se fue el internet… me siento solito 🥺','¿Dónde está el wifi? No oigo a nadie…']},
+ online:   {prio:3, cd:30000, ms:3000, anim:'jump',   mood:'😃', fx:'📶', lines:['¡Volvió la conexión! 🎉']},
+ night:    {prio:3, cd:900000,ms:5000, anim:'sleep',  mood:'😴', fx:'💤', lines:['Zzz… ya es muy tarde, ¿no vas a dormir? 😴','Bostezo… ¡a la camita! 🌙']},
+ morning:  {prio:3, cd:21600000,ms:5000,anim:'jump',  mood:'😄', fx:'☀️', lines:['¡Buenos días, soy {n}! ☀️ ¿Listo para el día?','¡Buen día! ¡Qué bien dormí!']},
+ dark:     {prio:3, cd:600000,ms:4500, anim:'',       mood:'🌙', fx:'🌙', lines:['Está muy oscuro por aquí…','Se apagó la luz, me da un poquito de miedo.']},
+ bright:   {prio:3, cd:600000,ms:4500, anim:'',       mood:'😎', fx:'☀️', lines:['¡Cuánta luz! Necesito gafas de sol 😎','¡Qué solazo! Me deslumbra.']},
+ hungry:   {prio:3, cd:180000,ms:4500, anim:'',       mood:'🤤', fx:'🍖', lines:['Tengo hambre… ¡ñam ñam! 🍖','Mi pancita hace ruidos… ¿me das de comer?']},
+ tired:    {prio:3, cd:240000,ms:4500, anim:'',       mood:'😪', fx:'💤', lines:['Estoy agotado… ¿podemos dormir un ratito? 😪']},
+ lonely:   {prio:3, cd:240000,ms:4500, anim:'',       mood:'🥺', fx:'💔', lines:['Me siento solito… ¿jugamos o me haces mimos? 🥺']},
+ back:     {prio:6, cd:0,     ms:6000, anim:'jump',   mood:'🥹', fx:'❤️', lines:['¡Volviste! Te extrañé muchísimo ({away}) 🥹','¡Por fin! Llevabas {away} sin venir… ¡qué ganas tenía de verte!']},
+ feed:     {prio:5, cd:0,     ms:3000, anim:'jump',   mood:'😋', fx:'🍖', lines:['¡Ñam ñam ñam! ¡Qué rico!','¡Delicioso! Gracias, {n} te quiere ❤️'], up:{comida:30, cari:2}},
+ full:     {prio:5, cd:0,     ms:3000, anim:'',       mood:'😅', fx:'💤', lines:['¡Uf, no me cabe ni una miga! Estoy llenito 😅']},
+ play:     {prio:5, cd:0,     ms:3500, anim:'jump',   mood:'🤩', fx:'🎾', lines:['¡Yujuuu! ¡Qué divertido!','¡Otra ronda! ¡Soy el mejor! 🎾'], up:{energia:-12, cari:12, comida:-4}},
+ tiredplay:{prio:5, cd:0,     ms:3500, anim:'',       mood:'😪', fx:'💤', lines:['Estoy muy cansado para jugar… ¿dormimos? 😪']},
+ sleepStart:{prio:5,cd:0,     ms:3500, anim:'sleep',  mood:'😴', fx:'💤', lines:['Buenas noches… zzz 😴']},
+ wakeUp:   {prio:5, cd:0,     ms:4000, anim:'jump',   mood:'😊', fx:'☀️', lines:['¡Buenos días! ¡Qué bien descansé!']}
+};
+
+let cur = {id:null, prio:0, until:0, fx:null};
+const cool = {};
+let awayTxt = '';
+
+function react(id, opts = {}) {
+  const r = RX[id]; if (!r || !S) return false;
+  const now = Date.now();
+  if (!opts.force) {
+    if (now < (cool[id] || 0)) return false;
+    if (now < cur.until && r.prio <= cur.prio) return false;
+  }
+  cool[id] = now + (r.cd || 0);
+  const a = animal();
+  const pool = typeof r.lines === 'function' ? r.lines(a) : r.lines;
+  const line = rnd(pool)
+    .replace(/\{t\}/g, fmtTemp())
+    .replace(/\{n\}/g, S.name)
+    .replace(/\{snd\}/g, a.snd)
+    .replace(/\{b\}/g, Math.round(V.batt() ?? 0))
+    .replace(/\{away\}/g, awayTxt);
+  cur = {id, prio:r.prio, until:now + r.ms, fx:r.fx};
+  setAnim(r.anim); setMood(r.mood);
+  say(line, r.ms, r.speak !== false);
+  if (r.vib && navigator.vibrate) { try { navigator.vibrate(r.vib); } catch (e) {} }
+  if (r.fx) spawnFx(r.fx, r.fxN || 3);
+  if (r.up) for (const k in r.up) S[k] = clamp(S[k] + r.up[k], 0, 100);
+  lastFx = now;
+  return true;
+}
+
+/* =====================================================
+   6. REACCIONES AUTOMÁTICAS (se evalúan cada segundo)
+   ===================================================== */
+const isRain = c => (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95;
+const isSnow = c => (c >= 71 && c <= 77) || c === 85 || c === 86;
+
+function auto() {
+  if (S.sleeping) return;
+  const a = animal(), now = Date.now(), ids = [];
+  const n = V.noise();
+  if (n != null && now > mutedUntil) {
+    if (n > 78) ids.push('loud'); else if (n > 38 && n < 70) ids.push('listen');
+  }
+  const t = V.temp();
+  if (t != null) {
+    if (t >= a.hot + 7) ids.push('veryhot');
+    else if (t >= a.hot) ids.push('hot');
+    else if (t <= a.cold - 7) ids.push('verycold');
+    else if (t <= a.cold) ids.push('cold');
+    else ids.push('comfy');
+  }
+  if (!sim.on && senseOn.weather && R.code != null) {
+    if (isRain(R.code)) ids.push('rain'); else if (isSnow(R.code)) ids.push('snow');
+  }
+  const b = V.batt();
+  if (b != null && b <= 20 && !V.charging()) ids.push('lowbat');
+  if (!sim.on && senseOn.light && R.light != null) {
+    if (R.light < 8) ids.push('dark'); else if (R.light > 20000) ids.push('bright');
+  }
+  const h = V.hour();
+  if (isNight()) ids.push('night'); else if (h >= 6 && h < 10) ids.push('morning');
+  if (S.comida < 25) ids.push('hungry');
+  if (S.energia < 20) ids.push('tired');
+  if (S.cari < 20) ids.push('lonely');
+  ids.sort((x, y) => RX[y].prio - RX[x].prio);
+  for (const id of ids) if (react(id)) break;       // solo dispara la más importante
+}
+
+/* =====================================================
+   7. SENTIDOS DEL DISPOSITIVO
+   ===================================================== */
+// --- 7.1 Movimiento: sacudidas, caídas, inclinación, boca abajo ---
+let shakeHits = [], lastHit = 0, fallStart = 0, holdUp = 0, holdFace = 0, motionSeen = false;
+function onShake() {
+  if (!S) return;
+  if (S.sleeping) { setSleep(false); react('woke', {force:true}); return; }
+  react('shake');
+}
+function onMotion(e) {
+  motionSeen = true;
+  const g = e.accelerationIncludingGravity; if (!g || !S) return;
+  const m = Math.hypot(g.x || 0, g.y || 0, g.z || 0);
+  const now = performance.now();
+  if (Math.abs(m - 9.81) > 14 && now - lastHit > 80) {          // sacudida fuerte
+    lastHit = now;
+    shakeHits.push(now); shakeHits = shakeHits.filter(t => now - t < 900);
+    if (shakeHits.length >= 4) { shakeHits = []; onShake(); }
+  }
+  if (m < 2.0) {                                                  // caída libre
+    if (!fallStart) fallStart = now;
+    else if (now - fallStart > 180) { fallStart = 0; react('freefall'); }
+  } else fallStart = 0;
+}
+function onOrient(e) {
+  motionSeen = true;
+  const b = e.beta, g = e.gamma; if (b == null || !S) return;
+  const lean = clamp(g || 0, -35, 35);                            // se inclina con el móvil
+  $('#tilt').style.transform = `translateX(${lean * 1.2}px) rotate(${lean * 0.6}deg)`;
+  const up = b < -50 && b > -130, face = Math.abs(b) > 150, now = performance.now();
+  $('#flipper').classList.toggle('upside', up);                   // si das la vuelta al móvil, él sigue "de pie"
+  if (up)   { if (!holdUp)   holdUp = now;   else if (now - holdUp   > 700) react('upside');   } else holdUp = 0;
+  if (face) { if (!holdFace) holdFace = now; else if (now - holdFace > 700) react('facedown'); } else holdFace = 0;
+}
+async function startMotion() {
+  for (const Ev of [window.DeviceMotionEvent, window.DeviceOrientationEvent]) {   // iPhone pide permiso
+    if (Ev && typeof Ev.requestPermission === 'function') {
+      const r = await Ev.requestPermission();
+      if (r !== 'granted') throw new Error('permiso denegado');
+    }
+  }
+  motionSeen = false;
+  window.addEventListener('devicemotion', onMotion);
+  window.addEventListener('deviceorientation', onOrient);
+  setTimeout(() => { if (!motionSeen && senseOn.motion) say('No me llegan datos de movimiento… (¿estás en un PC? Usa el simulador de abajo).', 5000, false); }, 2500);
+}
+function stopMotion() {
+  window.removeEventListener('devicemotion', onMotion);
+  window.removeEventListener('deviceorientation', onOrient);
+  $('#tilt').style.transform = ''; $('#flipper').classList.remove('upside');
+}
+
+// --- 7.2 Oído: micrófono → nivel de ruido (el audio NO se graba ni se envía) ---
+let micStream = null, micTimer = null;
+async function startMic() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('sin micrófono');
+  micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+  const ac = getAC(), src = ac.createMediaStreamSource(micStream), an = ac.createAnalyser();
+  an.fftSize = 1024; src.connect(an);
+  const buf = new Float32Array(an.fftSize);
+  micTimer = setInterval(() => {
+    an.getFloatTimeDomainData(buf);
+    let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+    const db = 20 * Math.log10(Math.sqrt(s / buf.length) + 1e-6);   // ≈ -120 … 0 dB
+    R.noise = R.noise * 0.6 + clamp((db + 60) * 2, 0, 100) * 0.4;   // -60 dB → 0 · -10 dB → 100
+  }, 100);
+}
+function stopMic() {
+  clearInterval(micTimer); micTimer = null;
+  if (micStream) micStream.getTracks().forEach(t => t.stop());
+  micStream = null; R.noise = 0;
+}
+
+// --- 7.3 Clima: temperatura exterior (Open-Meteo, gratis y sin clave) ---
+let weatherTimer = null, coords = null;
+async function fetchWeather() {
+  const u = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,apparent_temperature,weather_code&timezone=auto`;
+  const j = await (await fetch(u)).json();
+  R.temp = j.current.apparent_temperature ?? j.current.temperature_2m;
+  R.code = j.current.weather_code;
+}
+async function startWeather() {
+  const pos = await new Promise((ok, no) => navigator.geolocation
+    ? navigator.geolocation.getCurrentPosition(ok, no, {enableHighAccuracy:false, timeout:15000, maximumAge:600000})
+    : no(new Error('sin geolocalización')));
+  coords = {lat:+pos.coords.latitude.toFixed(2), lon:+pos.coords.longitude.toFixed(2)};   // ~1 km: no guardamos tu posición exacta
+  await fetchWeather();
+  weatherTimer = setInterval(() => fetchWeather().catch(() => {}), 15 * 60 * 1000);
+}
+function stopWeather() { clearInterval(weatherTimer); weatherTimer = null; R.temp = null; R.code = null; }
+
+// --- 7.4 Luz ambiental (solo si el navegador la ofrece) ---
+let lightSensor = null;
+function startLight() {
+  if (!('AmbientLightSensor' in window)) throw new Error('Tu navegador no ofrece sensor de luz (en Chrome Android: chrome://flags → "Generic Sensor Extra Classes").');
+  lightSensor = new AmbientLightSensor({frequency:2});
+  lightSensor.addEventListener('reading', () => { R.light = lightSensor.illuminance; });
+  lightSensor.addEventListener('error', e => say('El sensor de luz dio error: ' + e.error.name, 4000, false));
+  lightSensor.start();
+}
+function stopLight() { try { lightSensor && lightSensor.stop(); } catch (e) {} lightSensor = null; R.light = null; }
+
+// --- 7.5 Batería (automática, sin permiso; no existe en iPhone) ---
+async function initBattery() {
+  if (!navigator.getBattery) return;
+  try {
+    const b = await navigator.getBattery();
+    const upd = () => {
+      const was = R.charging;
+      R.battery = Math.round(b.level * 100); R.charging = b.charging;
+      if (was === false && b.charging) react('charge', {force:true});
+      if (was === true && !b.charging) react('unplug');
+    };
+    upd(); b.addEventListener('levelchange', upd); b.addEventListener('chargingchange', upd);
+  } catch (e) {}
+}
+
+// --- botones de sentidos ---
+const SENSES = {
+  weather:{name:'clima',  start:startWeather, stop:stopWeather, ok:'¡Ya siento el clima de afuera! 🌤️'},
+  motion: {name:'cuerpo', start:startMotion,  stop:stopMotion,  ok:'¡Ahora siento cuando me mueves! 📳 Prueba a sacudirme o inclinarme.'},
+  mic:    {name:'oído',   start:startMic,     stop:stopMic,     ok:'¡Ahora te oigo! 🎤 (el audio no se graba).'},
+  light:  {name:'vista',  start:startLight,   stop:stopLight,   ok:'¡Ya veo la luz! 💡'}
+};
+document.querySelectorAll('[data-sense]').forEach(btn => btn.addEventListener('click', async () => {
+  const k = btn.dataset.sense, s = SENSES[k];
+  if (senseOn[k]) { s.stop(); senseOn[k] = false; btn.classList.remove('on'); say('Dejo de usar mi ' + s.name + '.', 2500, false); baseline(); return; }
+  btn.disabled = true;
+  try {
+    await s.start(); senseOn[k] = true;
+    btn.classList.add('on'); btn.classList.remove('err');
+    say(s.ok, 3500);
+  } catch (e) {
+    btn.classList.add('err');
+    say(e && e.message && e.message.length > 25 ? e.message : 'No pude activar ese sentido (permiso denegado o no disponible aquí).', 5000, false);
+  }
+  btn.disabled = false;
+}));
+
+// --- red, hora, volver a la app ---
+addEventListener('online',  () => { R.online = true;  react('online',  {force:true}); });
+addEventListener('offline', () => { R.online = false; react('offline', {force:true}); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { save(); try { speechSynthesis.cancel(); } catch (e) {} }
+});
+
+/* =====================================================
+   8. TACTO: toques, caricias y abrazos
+   ===================================================== */
+let taps = [], pd = null, hugT = null;
+function setSleep(on) {
+  S.sleeping = on;
+  document.body.classList.toggle('sleeping', on);
+  $('#btnSleep').textContent = on ? '☀️ Despertar' : '🌙 Dormir';
+}
+function wakeIfSleeping() {
+  if (!S.sleeping) return false;
+  setSleep(false); react('woke', {force:true}); return true;
+}
+function doTap() {
+  if (wakeIfSleeping()) return;
+  const now = Date.now();
+  taps = taps.filter(t => now - t < 3000); taps.push(now);
+  chirp(animal().pitch, 1);
+  if (taps.length >= 7) { react('annoyed'); return; }
+  if (!cur.id || cur.id === 'tap' || cur.id === 'purr') react('tap', {force:true});
+}
+const stage = $('#stage');
+stage.addEventListener('pointerdown', e => {
+  pd = {x:e.clientX, y:e.clientY, t:performance.now(), move:0, acc:0, hugged:false};
+  hugT = setTimeout(() => {
+    if (pd && pd.move < 20) { pd.hugged = true; if (!wakeIfSleeping()) react('hug', {force:true}); }
+  }, 900);
+});
+stage.addEventListener('pointermove', e => {
+  if (!pd) return;
+  const d = Math.hypot(e.clientX - pd.x, e.clientY - pd.y);
+  pd.x = e.clientX; pd.y = e.clientY; pd.move += d; pd.acc += d;
+  if (pd.acc > 220) {                                             // acariciar = arrastrar el dedo
+    pd.acc = 0;
+    if (!S.sleeping) { react('purr'); chirp(animal().pitch * 0.7, 1); }
+  }
+});
+stage.addEventListener('pointerup', () => {
+  clearTimeout(hugT);
+  if (pd && !pd.hugged && pd.move < 15 && performance.now() - pd.t < 350) doTap();
+  pd = null;
+});
+stage.addEventListener('pointercancel', () => { clearTimeout(hugT); pd = null; });
+
+/* =====================================================
+   9. ACCIONES (comer, jugar, dormir) y voz
+   ===================================================== */
+$('#btnFeed').onclick = () => { if (S.sleeping) return wakeIfSleeping(); S.comida >= 95 ? react('full', {force:true}) : react('feed', {force:true}); };
+$('#btnPlay').onclick = () => { if (S.sleeping) return wakeIfSleeping(); S.energia < 15 ? react('tiredplay', {force:true}) : react('play', {force:true}); };
+$('#btnSleep').onclick = () => {
+  if (!S.sleeping) { setSleep(true); react('sleepStart', {force:true}); }
+  else { setSleep(false); react('wakeUp', {force:true}); }
+};
+$('#btnVoice').onclick = () => {
+  S.voice = !S.voice; $('#btnVoice').textContent = S.voice ? '🔊' : '🔇';
+  if (!S.voice) { try { speechSynthesis.cancel(); } catch (e) {} } else say('¡Ahora hablo otra vez! ' + animal().snd);
+  save();
+};
+
+/* =====================================================
+   10. TIEMPO: hambre, cansancio, ausencias
+   ===================================================== */
+let tickTimer = null, lastSave = 0;
+function decay(dt) {
+  if (S.sleeping) {
+    S.energia += 4 * dt; S.comida -= 0.05 * dt; S.cari -= 0.03 * dt;
+  } else {
+    S.comida -= 0.15 * dt; S.energia -= 0.10 * dt; S.cari -= 0.08 * dt;
+  }
+  S.comida = clamp(S.comida, 0, 100); S.energia = clamp(S.energia, 0, 100); S.cari = clamp(S.cari, 0, 100);
+}
+function renderBars() {
+  for (const [k, id] of [['comida','b-food'], ['energia','b-energy'], ['cari','b-love']]) {
+    const el = $('#' + id);
+    el.querySelector('b').style.width = Math.round(S[k]) + '%';
+    el.classList.toggle('low', S[k] < 25);
+  }
+}
+function renderReadout() {
+  const t = V.temp(), b = V.batt(), n = V.noise(), l = R.light;
+  $('#r-temp').textContent  = t == null ? '—' : Math.round(t) + '°C';
+  $('#r-batt').textContent  = b == null ? '—' : Math.round(b) + '%' + (V.charging() ? '⚡' : '');
+  $('#r-noise').textContent = n == null ? '—' : Math.round(n);
+  $('#r-light').textContent = l == null ? '—' : Math.round(l) + ' lx';
+  $('#r-net').textContent   = R.online ? 'online' : 'offline';
+  $('#r-hour').textContent  = String(V.hour()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0');
+}
+function updateEnv() {
+  const c = climate(), cl = document.body.classList;
+  cl.toggle('hot', c === 'hot'); cl.toggle('cold', c === 'cold'); cl.toggle('night', isNight());
+}
+function tick() {
+  if (!S) return;
+  const now = Date.now();
+  let dt = (now - S.last) / 60000, away = false;
+  S.last = now;
+  if (dt > 2) { away = true; awayTxt = fmtAway(dt); dt = Math.min(dt, 480); }
+  decay(dt);
+  if (away) { S.comida = Math.max(S.comida, 10); S.energia = Math.max(S.energia, 10); S.cari = Math.max(S.cari, 10); }
+  updateEnv();
+
+  if (S.sleeping && S.energia >= 100) { setSleep(false); react('wakeUp', {force:true}); }
+  if (away && !S.sleeping) react('back', {force:true});
+  else auto();
+
+  if (cur.id && now > cur.until) { cur = {id:null, prio:0, until:0, fx:null}; baseline(); }
+  if (cur.id && cur.fx && now - lastFx > 500) { spawnFx(cur.fx, 1); lastFx = now; }
+  else if (!cur.id && now - lastFx > 1500) {                      // efectos suaves de ambiente
+    const e = S.sleeping ? '💤' : (climate() === 'hot' ? '💦' : (climate() === 'cold' ? '❄️' : null));
+    if (e) { spawnFx(e, 1); lastFx = now; }
+  }
+  renderBars(); renderReadout();
+  if (now - lastSave > 10000) { save(); lastSave = now; }
+}
+
+/* =====================================================
+   11. PANTALLAS: elegir animal / casa
+   ===================================================== */
+let chosen = null;
+function buildPicker() {
+  const g = $('#grid'); g.innerHTML = '';
+  ANIMALS.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'cell';
+    b.innerHTML = `<span>${a.e}</span><small>${a.n}</small>`;
+    b.onclick = () => {
+      chosen = a;
+      [...g.children].forEach(c => c.classList.remove('sel')); b.classList.add('sel');
+      $('#adoptBar').classList.remove('hidden');
+      $('#petName').placeholder = 'Nombre de tu ' + a.n.toLowerCase();
+      chirp(a.pitch, 2);
+    };
+    g.appendChild(b);
+  });
+}
+function showPick() {
+  $('#home').classList.add('hidden'); $('#pick').classList.remove('hidden');
+  $('#btnBack').classList.toggle('hidden', !S);
+}
+function showHome(first) {
+  $('#pick').classList.add('hidden'); $('#home').classList.remove('hidden');
+  const a = animal();
+  $('#emoji').textContent = a.e;
+  $('#pname').textContent = S.name; $('#pkind').textContent = a.n;
+  $('#btnVoice').textContent = S.voice ? '🔊' : '🔇';
+  setSleep(!!S.sleeping);
+  cur = {id:null, prio:0, until:0, fx:null};
+  baseline(); renderBars(); renderReadout();
+  if (first) say(`¡Hola, soy ${S.name}! ${a.snd} Activa mis sentidos aquí abajo 👇 para que pueda sentir el mundo.`, 8000);
+  if (!tickTimer) tickTimer = setInterval(tick, 1000);
+}
+$('#adopt').onclick = () => {
+  if (!chosen) return;
+  const name = ($('#petName').value.trim() || chosen.n).slice(0, 14);
+  S = {animal:chosen.id, name, comida:80, energia:80, cari:70, last:Date.now(), sleeping:false, voice:true};
+  $('#petName').value = '';
+  Object.keys(cool).forEach(k => delete cool[k]);
+  save(); showHome(true);
+};
+$('#btnChange').onclick = () => { if (confirm('¿Cambiar de animalito? Adoptarás una mascota nueva.')) showPick(); };
+$('#btnBack').onclick = () => showHome(false);
+
+/* --- simulador (útil en PC) --- */
+const bind = (id, key, out, fmt) => $(id).addEventListener('input', e => { sim[key] = +e.target.value; $(out).textContent = fmt(sim[key]); });
+bind('#simTemp', 'temp', '#simTempV', v => v + '°C');
+bind('#simNoise', 'noise', '#simNoiseV', v => v);
+bind('#simBatt', 'batt', '#simBattV', v => v + '%');
+$('#simOn').onchange    = e => { sim.on = e.target.checked; };
+$('#simNight').onchange = e => { sim.night = e.target.checked; };
+$('#simCharge').onchange = e => { sim.charging = e.target.checked; if (sim.on) react(sim.charging ? 'charge' : 'unplug', {force:true}); };
+$('#simShake').onclick  = () => onShake();
+$('#simFall').onclick   = () => react('freefall', {force:true});
+$('#simFlip').onclick   = () => { const f = $('#flipper'); f.classList.toggle('upside'); if (f.classList.contains('upside')) react('upside', {force:true}); };
+
+/* --- instalar como app --- */
+let deferred = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('#btnInstall').classList.remove('hidden'); });
+$('#btnInstall').onclick = async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('#btnInstall').classList.add('hidden'); };
+addEventListener('appinstalled', () => $('#btnInstall').classList.add('hidden'));
+
+/* =====================================================
+   12. ARRANQUE
+   ===================================================== */
+buildPicker();
+initBattery();
+if (S && S.animal) { S.voice = S.voice !== false; showHome(false); } else { S = null; showPick(); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
